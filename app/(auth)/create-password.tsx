@@ -12,7 +12,7 @@ export default function CreatePasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-  const { studentId, rowIndex } = useLocalSearchParams();
+  const { rowIndex } = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 

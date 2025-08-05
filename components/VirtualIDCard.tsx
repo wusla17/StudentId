@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import Animated, {
 import QRCode from 'react-native-qrcode-svg';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { Student, Guardian } from '@/services/googleSheetService';
+import { Student } from '@/services/googleSheetService';
 
 interface VirtualIDCardProps {
   student: Student;

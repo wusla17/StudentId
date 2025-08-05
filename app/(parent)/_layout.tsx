@@ -1,44 +1,36 @@
-
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { TabBarIcon } from '../../components/navigation/TabBarIcon';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { useThemeColor } from '@/hooks/useThemeColor';
 
-export default function ParentLayout() {
-  const colorScheme = useColorScheme();
+export default function ParentTabLayout() {
+  const tintColor = useThemeColor({}, 'tint');
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: tintColor,
         headerShown: false,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'ID Card',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'person' : 'person-outline'} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <FontAwesome size={28} name="id-card" color={color} />,
         }}
       />
       <Tabs.Screen
         name="fees"
         options={{
           title: 'Fees',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'cash' : 'cash-outline'} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <FontAwesome size={28} name="money" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="leave"
+        name="profile"
         options={{
-          title: 'Leave',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'walk' : 'walk-outline'} color={color} />
-          ),
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <FontAwesome size={28} name="user" color={color} />,
         }}
       />
     </Tabs>

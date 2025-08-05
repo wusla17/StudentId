@@ -1,120 +1,92 @@
-import { Poppins_400Regular, Poppins_700Bold, useFonts } from '@expo-google-fonts/poppins';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
+import { AuthProvider, useAuth } from '@/context/AuthContext'; // Make sure the path is correct
+import { auth, db } from '@/firebaseConfig'; // Make sure the path is correct
+import { Slot, useRouter, useSegments } from 'expo-router';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { useEffect, useState } from 'react';
-import 'react-native-reanimated';
-import { auth, db } from '@/firebaseConfig';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { useColorScheme } from '@/hooks/useColorScheme';
-import { GestureHandlerRootView } from 'react-native-gesture-handler'; // Import GestureHandlerRootView
-
-SplashScreen.preventAutoHideAsync();
-
-const REGISTRATION_EMAIL_DOMAIN = '@student-id.app';
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [fontsLoaded, fontError] = useFonts({
-    Poppins_400Regular,
-    Poppins_700Bold,
-  });
-
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthProvider>
-          <RootLayoutNav />
-        </AuthProvider>
-      </ThemeProvider>
-    </GestureHandlerRootView>
-  );
-}
-
-function RootLayoutNav() {
-  const { user, loading, role } = useAuth();
+// This component is the "Bouncer". It handles all navigation.
+const InitialLayout = () => {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    const setupAdmin = async () => {
-      const ADMIN_SETUP_COMPLETE_KEY = 'admin_setup_complete';
-      const adminEmail = `admin${REGISTRATION_EMAIL_DOMAIN}`;
-      const adminPassword = '123'; // Consider making this more secure in a real app
+    // Wait until the auth state is fully loaded before trying to navigate
+    if (isLoading) {
+      return;
+    }
 
-      const setupComplete = await AsyncStorage.getItem(ADMIN_SETUP_COMPLETE_KEY);
-      if (setupComplete === 'true') {
-        console.log('Admin setup already complete (local flag found).');
-        return;
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (user) {
+      // User is logged in.
+      // If they are on a page inside the (auth) group, redirect them away.
+      if (inAuthGroup) {
+         if (user.role === 'admin') {
+            router.replace('/(admin)'); // Or your main admin screen
+         } else {
+            router.replace('/(parent)'); // Or your main parent/user screen
+         }
       }
+    } else if (!user) {
+      // User is not logged in.
+      // Redirect them to the login screen.
+      router.replace('/(auth)/login');
+    }
+  }, [user, isLoading, segments]);
 
-      console.log('Attempting to create default admin user...');
+  // Show a loading screen while we check for a logged-in user
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  // If loading is complete, show the screen the user is supposed to see
+  return <Slot />;
+};
+
+
+// This is the main layout of the app
+export default function RootLayout() {
+  // This useEffect hook runs only once to create the default admin
+  useEffect(() => {
+    const createDefaultAdmin = async () => {
+      const adminEmail = 'admin@example.com';
+      const adminPassword = 'admin123'; // Use a secure password
+
       try {
         const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, adminPassword);
-
-        await setDoc(doc(db, "users", userCredential.user.uid), {
-          registrationNumber: 'admin',
+        const adminUid = userCredential.user.uid;
+        
+        await setDoc(doc(db, 'users', adminUid), {
+          email: adminEmail,
           role: 'admin',
-          uid: userCredential.user.uid,
+          createdAt: new Date(),
         });
-        console.log('Default admin user created and role saved to Firestore.');
-        await AsyncStorage.setItem(ADMIN_SETUP_COMPLETE_KEY, 'true');
-
+        console.log("Default admin user created.");
       } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
-          console.log('Admin user already exists. Marking setup complete.');
-          await AsyncStorage.setItem(ADMIN_SETUP_COMPLETE_KEY, 'true');
+          console.log("Default admin user already exists.");
         } else {
-          console.error('Error during admin setup:', error.code, error.message);
+          console.error("Error creating default admin user:", error);
         }
       }
     };
 
-    // Only run setup logic once after fonts are loaded and before navigation
-    if (!loading) {
-      setupAdmin();
-    }
-  }, [loading]);
-
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        if (role === 'admin') {
-          router.replace('/(admin)');
-        } else if (role) { // Ensure role is not null before navigating to tabs
-          router.replace('/(tabs)');
-        } else {
-          // If user exists but role is not yet fetched or is null, wait or handle appropriately
-          console.log("User logged in but role not yet determined or is null.");
-        }
-      } else {
-        router.replace('/(auth)/login');
-      }
-    }
-  }, [user, loading, role]);
-
-  if (loading) {
-    return null;
-  }
+    createDefaultAdmin();
+  }, []);
 
   return (
-    <Stack>
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <InitialLayout />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

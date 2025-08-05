@@ -3,7 +3,6 @@ import React from 'react';
 import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { TabBarIcon } from '../../components/navigation/TabBarIcon';
 import { Colors } from '@/constants/Colors';

@@ -1,66 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, StyleSheet, Button, Alert } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera'; // Corrected import
-import { useRouter } from 'expo-router';
+import { StyleSheet, Button, Alert } from 'react-native';
+import { CameraView, Camera } from 'expo-camera';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
 
-export default function QRScannerScreen() {
-  const [permission, requestPermission] = useCameraPermissions(); // Using the hook
+export default function ScanQRScreen() {
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
-    }
-  }, [permission]);
+    const getCameraPermissions = async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === 'granted');
+    };
+
+    getCameraPermissions();
+  }, []);
 
   const handleBarCodeScanned = ({ type, data }: { type: string; data: string }) => {
     setScanned(true);
-    try {
-      const parsedData = JSON.parse(data);
-      if (parsedData.type === 'student_id' && parsedData.registrationNumber) {
-        router.push({ pathname: '/(admin)/student-details', params: { studentId: parsedData.registrationNumber } });
-      } else {
-        Alert.alert('Invalid QR code format.', 'The scanned QR code does not contain valid student ID data.');
-      }
-    } catch (error) {
-      Alert.alert('Invalid QR code data.', 'Could not parse the QR code content. It might not be a valid JSON string.');
-    }
+    Alert.alert(
+      'QR Code Scanned',
+      `Data: ${data}\nType: ${type}`,
+      [
+        { text: 'OK', onPress: () => setScanned(false) },
+      ],
+      { cancelable: false }
+    );
+    // Here you would typically process the scanned data, e.g., mark attendance
+    console.log(`Bar code with type ${type} and data ${data} has been scanned!`);
   };
 
-  if (!permission) {
-    // Camera permissions are still loading
-    return <View style={styles.loadingContainer}><Text>Requesting camera permission...</Text></View>;
-  }
-
-  if (!permission.granted) {
-    // Camera permissions are not granted yet
+  if (hasPermission === null) {
     return (
-      <View style={styles.permissionContainer}>
-        <Text style={styles.permissionText}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant Permission" />
-      </View>
+      <ThemedView style={styles.container}>
+        <ThemedText>Requesting for camera permission</ThemedText>
+      </ThemedView>
+    );
+  }
+  if (hasPermission === false) {
+    return (
+      <ThemedView style={styles.container}>
+        <ThemedText>No access to camera</ThemedText>
+      </ThemedView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <CameraView // Corrected component name
+    <ThemedView style={styles.container}>
+      <ThemedText type="title" style={styles.header}>Scan Student QR</ThemedText>
+      <CameraView
         onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         barcodeScannerSettings={{
           barcodeTypes: ['qr'],
         }}
         style={StyleSheet.absoluteFillObject}
       />
-      <View style={styles.overlay}>
-        <View style={styles.scanBox} />
-      </View>
       {scanned && (
-        <View style={styles.scanAgainButtonContainer}>
-          <Button title={'Tap to Scan Again'} onPress={() => setScanned(false)} />
-        </View>
+        <Button title={'Tap to Scan Again'} onPress={() => setScanned(false)} />
       )}
-    </View>
+    </ThemedView>
   );
 }
 
@@ -69,45 +68,16 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
     justifyContent: 'center',
-    backgroundColor: '#000',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#f0f2f5',
   },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  permissionText: {
-    fontSize: 18,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scanBox: {
-    width: 250,
-    height: 250,
-    borderWidth: 2,
-    borderColor: '#fff',
-    borderRadius: 10,
-  },
-  scanAgainButtonContainer: {
+  header: {
     position: 'absolute',
-    bottom: 50,
-    alignSelf: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    top: 50,
+    zIndex: 1,
+    color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 10,
   },
 });
